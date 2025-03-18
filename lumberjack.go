@@ -217,11 +217,12 @@ func (l *Logger) openNew() error {
 	if err == nil {
 		// Copy the mode off the old logfile.
 		mode = info.Mode()
+
 		// move the existing file
-		newname := backupName(name, l.LocalTime)
-		if err := os.Rename(name, newname); err != nil {
-			return fmt.Errorf("can't rename log file: %s", err)
-		}
+		//newname := backupName(name, l.LocalTime)
+		//if err := os.Rename(name, newname); err != nil {
+		//	return fmt.Errorf("can't rename log file: %s", err)
+		//}
 
 		// this is a no-op anywhere but linux
 		if err := chown(name, info); err != nil {
@@ -239,23 +240,6 @@ func (l *Logger) openNew() error {
 	l.file = f
 	l.size = 0
 	return nil
-}
-
-// backupName creates a new filename from the given name, inserting a timestamp
-// between the filename and the extension, using the local time if requested
-// (otherwise UTC).
-func backupName(name string, local bool) string {
-	dir := filepath.Dir(name)
-	filename := filepath.Base(name)
-	ext := filepath.Ext(filename)
-	prefix := filename[:len(filename)-len(ext)]
-	t := currentTime()
-	if !local {
-		t = t.UTC()
-	}
-
-	timestamp := t.Format(backupTimeFormat)
-	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
 }
 
 // openExistingOrNew opens the logfile if it exists and if the current write
@@ -291,10 +275,29 @@ func (l *Logger) openExistingOrNew(writeLen int) error {
 // filename generates the name of the logfile from the current time.
 func (l *Logger) filename() string {
 	if l.Filename != "" {
-		return l.Filename
+		dir := filepath.Dir(l.Filename)
+		filename := filepath.Base(l.Filename)
+		ext := filepath.Ext(filename)
+		prefix := filename[:len(filename)-len(ext)]
+		t := currentTime()
+		if !l.LocalTime {
+			t = t.UTC()
+		}
+
+		timestamp := t.Format(backupTimeFormat)
+		return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
 	}
-	name := filepath.Base(os.Args[0]) + "-lumberjack.log"
-	return filepath.Join(os.TempDir(), name)
+	dir := os.TempDir()
+	filename := filepath.Base(os.Args[0]) + "-lumberjack.log"
+	ext := filepath.Ext(filename)
+	prefix := filename[:len(filename)-len(ext)]
+	t := currentTime()
+	if !l.LocalTime {
+		t = t.UTC()
+	}
+
+	timestamp := t.Format(backupTimeFormat)
+	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", prefix, timestamp, ext))
 }
 
 // millRunOnce performs compression and removal of stale log files.
